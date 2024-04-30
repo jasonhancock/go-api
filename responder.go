@@ -19,6 +19,8 @@ type RequestIDFunc func(context.Context) string
 // a context.
 type ClientIPFunc func(context.Context) string
 
+const requestIdHeader = "X-Request-Id"
+
 // Responder writes API responses.
 type Responder struct {
 	log             *logger.L
@@ -61,7 +63,8 @@ func (r *Responder) With(w http.ResponseWriter, req *http.Request, status int, d
 		}
 	}
 
-	log := r.log.With("request_id", r.requestIDFunc(req.Context()))
+	reqID := r.requestIDFunc(req.Context())
+	log := r.log.With("request_id", reqID)
 
 	if r.logResponseBody {
 		log.Debug("api_response",
@@ -73,6 +76,7 @@ func (r *Responder) With(w http.ResponseWriter, req *http.Request, status int, d
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set(requestIdHeader, reqID)
 	w.WriteHeader(status)
 	if _, err := io.Copy(w, &buf); err != nil {
 		log.LogError(

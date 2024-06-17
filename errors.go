@@ -67,3 +67,8 @@ type Exister interface {
 type Conflicter interface {
 	Conflict() bool
 }
+
+// UserMessager can be used to present a specific message to the user.
+type UserMessager interface {
+	UserMessage() string
+}

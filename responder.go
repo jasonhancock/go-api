@@ -110,23 +110,30 @@ func (r *Responder) Err(w http.ResponseWriter, req *http.Request, err error) {
 
 	if nfErr, ok := err.(NotFounder); ok && nfErr.NotFound() {
 		logMsg = false
-		r.With(w, req, http.StatusNotFound, newErr(reqID, "resource not found"))
+		r.With(w, req, http.StatusNotFound, newErr(reqID, getMessage(err, "resource not found")))
 		return
 	}
 
 	if exErr, ok := err.(Exister); ok && exErr.Exists() {
 		logMsg = false
-		r.With(w, req, http.StatusUnprocessableEntity, newErr(reqID, "resource exists"))
+		r.With(w, req, http.StatusUnprocessableEntity, newErr(reqID, getMessage(err, "resource exists")))
 		return
 	}
 
 	if cErr, ok := err.(Conflicter); ok && cErr.Conflict() {
 		logMsg = false
-		r.With(w, req, http.StatusUnprocessableEntity, newErr(reqID, "unprocessible entity"))
+		r.With(w, req, http.StatusUnprocessableEntity, newErr(reqID, getMessage(err, "unprocessible entity")))
 		return
 	}
 
-	r.With(w, req, http.StatusInternalServerError, newErr(reqID, "internal server error"))
+	r.With(w, req, http.StatusInternalServerError, newErr(reqID, getMessage(err, "internal server error")))
+}
+
+func getMessage(err error, defaultMsg string) string {
+	if um, ok := err.(UserMessager); ok {
+		return um.UserMessage()
+	}
+	return defaultMsg
 }
 
 type options struct {

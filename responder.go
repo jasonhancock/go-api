@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"runtime/debug"
 
 	"github.com/jasonhancock/go-logger"
 )
@@ -127,6 +128,35 @@ func (r *Responder) Err(w http.ResponseWriter, req *http.Request, err error) {
 	}
 
 	r.With(w, req, http.StatusInternalServerError, newErr(reqID, getMessage(err, "internal server error")))
+}
+
+func (r *Responder) Recoverer(next http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, req *http.Request) {
+		defer func() {
+			if rvr := recover(); rvr != nil {
+				if rvr == http.ErrAbortHandler {
+					// we don't recover http.ErrAbortHandler so the response
+					// to the client is aborted, this should not be logged
+					panic(rvr)
+				}
+
+				if req.Header.Get("Connection") != "Upgrade" {
+					r.Err(w, req, panicError(string(debug.Stack())))
+				}
+			}
+		}()
+
+		next.ServeHTTP(w, req)
+	}
+
+	return http.HandlerFunc(fn)
+}
+
+type panicError string
+
+func (e panicError) Error() string {
+	return "panic: " + string(e)
+
 }
 
 func getMessage(err error, defaultMsg string) string {

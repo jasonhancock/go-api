@@ -28,6 +28,7 @@ type Responder struct {
 	logResponseBody bool
 	requestIDFunc   RequestIDFunc
 	clientIPFunc    ClientIPFunc
+	counterPanics   Counter
 }
 
 // NewResponder makes a new Responder object.
@@ -45,6 +46,7 @@ func NewResponder(logger *logger.L, opts ...ResponderOption) *Responder {
 		logResponseBody: o.logResponseBodies,
 		requestIDFunc:   o.requestIDFunc,
 		clientIPFunc:    o.clientIPFunc,
+		counterPanics:   o.counterPanics,
 	}
 }
 
@@ -140,6 +142,10 @@ func (r *Responder) Recoverer(next http.Handler) http.Handler {
 					panic(rvr)
 				}
 
+				if r.counterPanics != nil {
+					r.counterPanics.Inc()
+				}
+
 				if req.Header.Get("Connection") != "Upgrade" {
 					r.Err(w, req, panicError(string(debug.Stack())))
 				}
@@ -156,7 +162,6 @@ type panicError string
 
 func (e panicError) Error() string {
 	return "panic: " + string(e)
-
 }
 
 func getMessage(err error, defaultMsg string) string {
@@ -170,6 +175,7 @@ type options struct {
 	logResponseBodies bool
 	requestIDFunc     RequestIDFunc
 	clientIPFunc      ClientIPFunc
+	counterPanics     Counter
 }
 
 // ResponderOption is used to customize the API responder.
@@ -199,5 +205,17 @@ func WithClientIPFunc(fn ClientIPFunc) ResponderOption {
 			return
 		}
 		o.clientIPFunc = fn
+	}
+}
+
+// Counter is a metric for counting the number of occurances of an event.
+type Counter interface {
+	Inc()
+}
+
+// WithCounterPanics will use the Counter to track any recovered panics.
+func WithCounterPanics(c Counter) ResponderOption {
+	return func(o *options) {
+		o.counterPanics = c
 	}
 }

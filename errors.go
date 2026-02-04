@@ -36,6 +36,10 @@ type HTTPErr struct {
 
 // NewHTTPErr generates a new HTTPErr.
 func NewHTTPErr(err error, code int) *HTTPErr {
+	if err == nil {
+		return nil
+	}
+
 	return &HTTPErr{
 		error: err,
 		Code:  code,
